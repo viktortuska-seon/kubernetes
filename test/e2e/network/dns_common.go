@@ -390,9 +390,9 @@ func createDNSPod(namespace, wheezyProbeCmd, jessieProbeCmd, podHostName, servic
 	return dnsPod
 }
 
-func createProbeCommand(namesToResolve []string, hostEntries []string, ptrLookupIP string, fileNamePrefix, namespace, dnsDomain string, isIPv6 bool) (string, []string) {
+func createProbeCommand(namesToResolve []string, hostEntries []string, ptrLookupIP string, fileNamePrefix, namespace, dnsDomain string, isIPv6 bool, digExtraOptions string) (string, []string) {
 	fileNames := make([]string, 0, len(namesToResolve)*2)
-	probeCmd := "for i in `seq 1 600`; do "
+	probeCmd := "for i in `seq 1 60`; do "
 	dnsRecord := "A"
 	if isIPv6 {
 		dnsRecord = "AAAA"
@@ -407,10 +407,10 @@ func createProbeCommand(namesToResolve []string, hostEntries []string, ptrLookup
 		}
 		fileName := fmt.Sprintf("%s_udp@%s", fileNamePrefix, name)
 		fileNames = append(fileNames, fileName)
-		probeCmd += fmt.Sprintf(`check="$$(dig +notcp +noall +answer +search %s)" && test -n "$$check" && echo OK > /results/%s;`, lookup, fileName)
+		probeCmd += fmt.Sprintf(`check="$$(dig +notcp +noall +answer %s %s)" && test -n "$$check" && echo OK > /results/%s;`, digExtraOptions, lookup, fileName)
 		fileName = fmt.Sprintf("%s_tcp@%s", fileNamePrefix, name)
 		fileNames = append(fileNames, fileName)
-		probeCmd += fmt.Sprintf(`check="$$(dig +tcp +noall +answer +search %s)" && test -n "$$check" && echo OK > /results/%s;`, lookup, fileName)
+		probeCmd += fmt.Sprintf(`check="$$(dig +tcp +noall +answer %s %s)" && test -n "$$check" && echo OK > /results/%s;`, digExtraOptions, lookup, fileName)
 	}
 
 	hostEntryCmd := `test -n "$$(getent hosts %s)" && echo OK > /results/%s;`
@@ -431,8 +431,8 @@ func createProbeCommand(namesToResolve []string, hostEntries []string, ptrLookup
 		}
 		ptrRecByUDPFileName := fmt.Sprintf("%s_udp@PTR", ptrLookupIP)
 		ptrRecByTCPFileName := fmt.Sprintf("%s_tcp@PTR", ptrLookupIP)
-		probeCmd += fmt.Sprintf(`check="$$(dig +notcp +noall +answer +search %s PTR)" && test -n "$$check" && echo OK > /results/%s;`, ptrLookup, ptrRecByUDPFileName)
-		probeCmd += fmt.Sprintf(`check="$$(dig +tcp +noall +answer +search %s PTR)" && test -n "$$check" && echo OK > /results/%s;`, ptrLookup, ptrRecByTCPFileName)
+		probeCmd += fmt.Sprintf(`check="$$(dig +notcp +noall +answer %s %s PTR)" && test -n "$$check" && echo OK > /results/%s;`, digExtraOptions, ptrLookup, ptrRecByUDPFileName)
+		probeCmd += fmt.Sprintf(`check="$$(dig +tcp +noall +answer %s %s PTR)" && test -n "$$check" && echo OK > /results/%s;`, digExtraOptions, ptrLookup, ptrRecByTCPFileName)
 		fileNames = append(fileNames, ptrRecByUDPFileName)
 		fileNames = append(fileNames, ptrRecByTCPFileName)
 	}
@@ -463,6 +463,15 @@ func assertFilesContain(ctx context.Context, fileNames []string, fileDir string,
 		defer cancel()
 
 		for _, fileName := range fileNames {
+			req := client.CoreV1().RESTClient().Get().
+				Namespace(pod.Namespace).
+				Resource("pods").
+				SubResource("proxy").
+				Name(pod.Name).
+				Suffix(fileDir, fileName)
+
+			contents, err := req.Do(ctx).Raw()
+/*
 			contents, err := client.CoreV1().RESTClient().Get().
 				Namespace(pod.Namespace).
 				Resource("pods").
@@ -470,12 +479,13 @@ func assertFilesContain(ctx context.Context, fileNames []string, fileDir string,
 				Name(pod.Name).
 				Suffix(fileDir, fileName).
 				Do(ctx).Raw()
+*/
 
 			if err != nil {
 				if ctx.Err() != nil {
-					framework.Failf("Unable to read %s from pod %s/%s: %v", fileName, pod.Namespace, pod.Name, err)
+					framework.Failf("0 Unable to read %s from pod %s/%s: %v %s", fileName, pod.Namespace, pod.Name, err, req.URL())
 				} else {
-					framework.Logf("Unable to read %s from pod %s/%s: %v", fileName, pod.Namespace, pod.Name, err)
+					framework.Logf("1 Unable to read %s from pod %s/%s: %v %s", fileName, pod.Namespace, pod.Name, err, req.URL())
 				}
 				failed = append(failed, fileName)
 			} else if check && strings.TrimSpace(string(contents)) != expected {
@@ -520,6 +530,7 @@ func validateDNSResults(ctx context.Context, f *framework.Framework, pod *v1.Pod
 	}
 	// Try to find results for each expected name.
 	ginkgo.By("looking for the results for each expected name from probers")
+    //time.Sleep(900*time.Second)
 	assertFilesExist(ctx, fileNames, "results", pod, f.ClientSet)
 
 	// TODO: probe from the host, too.
