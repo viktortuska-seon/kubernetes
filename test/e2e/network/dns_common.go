@@ -463,15 +463,6 @@ func assertFilesContain(ctx context.Context, fileNames []string, fileDir string,
 		defer cancel()
 
 		for _, fileName := range fileNames {
-			req := client.CoreV1().RESTClient().Get().
-				Namespace(pod.Namespace).
-				Resource("pods").
-				SubResource("proxy").
-				Name(pod.Name).
-				Suffix(fileDir, fileName)
-
-			contents, err := req.Do(ctx).Raw()
-/*
 			contents, err := client.CoreV1().RESTClient().Get().
 				Namespace(pod.Namespace).
 				Resource("pods").
@@ -479,13 +470,12 @@ func assertFilesContain(ctx context.Context, fileNames []string, fileDir string,
 				Name(pod.Name).
 				Suffix(fileDir, fileName).
 				Do(ctx).Raw()
-*/
 
 			if err != nil {
 				if ctx.Err() != nil {
-					framework.Failf("0 Unable to read %s from pod %s/%s: %v %s", fileName, pod.Namespace, pod.Name, err, req.URL())
+					framework.Failf("Unable to read %s from pod %s/%s: %v", fileName, pod.Namespace, pod.Name, err)
 				} else {
-					framework.Logf("1 Unable to read %s from pod %s/%s: %v %s", fileName, pod.Namespace, pod.Name, err, req.URL())
+					framework.Logf("Unable to read %s from pod %s/%s: %v", fileName, pod.Namespace, pod.Name, err)
 				}
 				failed = append(failed, fileName)
 			} else if check && strings.TrimSpace(string(contents)) != expected {
@@ -530,7 +520,6 @@ func validateDNSResults(ctx context.Context, f *framework.Framework, pod *v1.Pod
 	}
 	// Try to find results for each expected name.
 	ginkgo.By("looking for the results for each expected name from probers")
-    //time.Sleep(900*time.Second)
 	assertFilesExist(ctx, fileNames, "results", pod, f.ClientSet)
 
 	// TODO: probe from the host, too.

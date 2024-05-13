@@ -229,17 +229,8 @@ var _ = common.SIGDescribe("DNS", func() {
 
 		// Run a pod which probes DNS and exposes the results by HTTP.
 		ginkgo.By("creating a pod to probe DNS")
-		testNdotsValue := "5"
 		pod := createDNSPod(f.Namespace.Name, wheezyProbeCmd, jessieProbeCmd, dnsTestPodHostName, dnsTestServiceName)
 		pod.ObjectMeta.Labels = testServiceSelector
-		pod.Spec.DNSConfig = &v1.PodDNSConfig{
-			Options: []v1.PodDNSConfigOption{
-				{
-					Name:  "ndots",
-					Value: &testNdotsValue,
-				},
-			},
-		}
 
 		validateDNSResults(ctx, f, pod, append(wheezyFileNames, jessieFileNames...))
 	})
@@ -298,9 +289,6 @@ var _ = common.SIGDescribe("DNS", func() {
 		testServiceSelector := map[string]string{
 			"dns-test-hostname-attribute": "true",
 		}
-		podAnnotation := map[string]string{
-			"linkerd.io/inject": "disabled",
-		}
 		serviceName := "dns-test-service-2"
 		podHostname := "dns-querier-2"
 		headlessService := e2eservice.CreateServiceSpec(serviceName, "", true, testServiceSelector)
@@ -326,7 +314,6 @@ var _ = common.SIGDescribe("DNS", func() {
 		ginkgo.By("creating a pod to probe DNS")
 		pod1 := createDNSPod(f.Namespace.Name, wheezyProbeCmd, jessieProbeCmd, dnsTestPodHostName, dnsTestServiceName)
 		pod1.ObjectMeta.Labels = testServiceSelector
-		pod1.ObjectMeta.Annotations = podAnnotation
 		pod1.Spec.Hostname = podHostname
 		pod1.Spec.Subdomain = serviceName
 
@@ -586,7 +573,6 @@ var _ = common.SIGDescribe("DNS", func() {
 		ginkgo.By("Running these commands on jessie: " + jessieProbeCmd + "\n")
 
 		ginkgo.By("Creating a pod with expanded DNS configuration to probe DNS")
-		//testNdotsValue := "1"
 		testNdotsValue := "5"
 		testSearchPaths := []string{
 			fmt.Sprintf("%038d.k8s.io", 1),
