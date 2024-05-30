@@ -456,6 +456,7 @@ func (f *Framework) CreateNamespace(ctx context.Context, baseName string, labels
 		}
 		labels = labelsCopy
 	}
+    labels["seon.io/ns-type"] = "system"
 
 	labels[admissionapi.EnforceLevelLabel] = firstNonEmptyPSaLevelOrRestricted(f.NamespacePodSecurityEnforceLevel, f.NamespacePodSecurityLevel)
 	labels[admissionapi.WarnLevelLabel] = firstNonEmptyPSaLevelOrRestricted(f.NamespacePodSecurityWarnLevel, f.NamespacePodSecurityLevel)
