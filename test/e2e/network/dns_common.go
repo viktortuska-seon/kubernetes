@@ -390,9 +390,9 @@ func createDNSPod(namespace, wheezyProbeCmd, jessieProbeCmd, podHostName, servic
 	return dnsPod
 }
 
-func createProbeCommand(namesToResolve []string, hostEntries []string, ptrLookupIP string, fileNamePrefix, namespace, dnsDomain string, isIPv6 bool) (string, []string) {
+func createProbeCommand(namesToResolve []string, hostEntries []string, ptrLookupIP string, fileNamePrefix, namespace, dnsDomain string, isIPv6 bool, digExtraOptions string) (string, []string) {
 	fileNames := make([]string, 0, len(namesToResolve)*2)
-	probeCmd := "for i in `seq 1 600`; do "
+	probeCmd := "for i in `seq 1 60`; do "
 	dnsRecord := "A"
 	if isIPv6 {
 		dnsRecord = "AAAA"
@@ -407,10 +407,10 @@ func createProbeCommand(namesToResolve []string, hostEntries []string, ptrLookup
 		}
 		fileName := fmt.Sprintf("%s_udp@%s", fileNamePrefix, name)
 		fileNames = append(fileNames, fileName)
-		probeCmd += fmt.Sprintf(`check="$$(dig +notcp +noall +answer +search %s)" && test -n "$$check" && echo OK > /results/%s;`, lookup, fileName)
+		probeCmd += fmt.Sprintf(`check="$$(dig +notcp +noall +answer %s %s)" && test -n "$$check" && echo OK > /results/%s;`, digExtraOptions, lookup, fileName)
 		fileName = fmt.Sprintf("%s_tcp@%s", fileNamePrefix, name)
 		fileNames = append(fileNames, fileName)
-		probeCmd += fmt.Sprintf(`check="$$(dig +tcp +noall +answer +search %s)" && test -n "$$check" && echo OK > /results/%s;`, lookup, fileName)
+		probeCmd += fmt.Sprintf(`check="$$(dig +tcp +noall +answer %s %s)" && test -n "$$check" && echo OK > /results/%s;`, digExtraOptions, lookup, fileName)
 	}
 
 	hostEntryCmd := `test -n "$$(getent hosts %s)" && echo OK > /results/%s;`
@@ -431,8 +431,8 @@ func createProbeCommand(namesToResolve []string, hostEntries []string, ptrLookup
 		}
 		ptrRecByUDPFileName := fmt.Sprintf("%s_udp@PTR", ptrLookupIP)
 		ptrRecByTCPFileName := fmt.Sprintf("%s_tcp@PTR", ptrLookupIP)
-		probeCmd += fmt.Sprintf(`check="$$(dig +notcp +noall +answer +search %s PTR)" && test -n "$$check" && echo OK > /results/%s;`, ptrLookup, ptrRecByUDPFileName)
-		probeCmd += fmt.Sprintf(`check="$$(dig +tcp +noall +answer +search %s PTR)" && test -n "$$check" && echo OK > /results/%s;`, ptrLookup, ptrRecByTCPFileName)
+		probeCmd += fmt.Sprintf(`check="$$(dig +notcp +noall +answer %s %s PTR)" && test -n "$$check" && echo OK > /results/%s;`, digExtraOptions, ptrLookup, ptrRecByUDPFileName)
+		probeCmd += fmt.Sprintf(`check="$$(dig +tcp +noall +answer %s %s PTR)" && test -n "$$check" && echo OK > /results/%s;`, digExtraOptions, ptrLookup, ptrRecByTCPFileName)
 		fileNames = append(fileNames, ptrRecByUDPFileName)
 		fileNames = append(fileNames, ptrRecByTCPFileName)
 	}

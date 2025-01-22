@@ -20,6 +20,7 @@
 REGISTRY?=registry.k8s.io
 ARCH?=amd64
 OUT_DIR?=_output
+IMAGE_NAME="k8s-conformance-test"
 
 LOCAL_OUTPUT_PATH=$(shell pwd)/../../../$(OUT_DIR)/local/bin/linux/$(ARCH)
 DOCKERIZED_OUTPUT_PATH=$(shell pwd)/../../../$(OUT_DIR)/dockerized/bin/linux/$(ARCH)
@@ -62,17 +63,17 @@ endif
 		--platform linux/${ARCH} \
 		--load \
 		--pull \
-		-t ${REGISTRY}/conformance-${ARCH}:${VERSION} \
+		-t ${REGISTRY}/${IMAGE_NAME}:${VERSION} \
 		--build-arg RUNNERIMAGE=$(RUNNERIMAGE) \
 		${TEMP_DIR}
 	rm -rf "${TEMP_DIR}"
 
 push: build
-	docker push ${REGISTRY}/conformance-${ARCH}:${VERSION}
+	docker push ${REGISTRY}/${IMAGE_NAME}:${VERSION}
 ifeq ($(ARCH),amd64)
-	docker rmi ${REGISTRY}/conformance:${VERSION} 2>/dev/null || true
-	docker tag ${REGISTRY}/conformance-${ARCH}:${VERSION} ${REGISTRY}/conformance:${VERSION}
-	docker push ${REGISTRY}/conformance:${VERSION}
+	docker rmi ${REGISTRY}/${IMAGE_NAME}:${VERSION} 2>/dev/null || true
+	docker tag ${REGISTRY}/${IMAGE_NAME}:${VERSION} ${REGISTRY}/${IMAGE_NAME}:${VERSION}
+	docker push ${REGISTRY}/${IMAGE_NAME}:${VERSION}
 endif
 
 .PHONY: build push all
